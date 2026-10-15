@@ -1,5 +1,5 @@
 name: hermes-xai
-version: "0.2.0"
+version: "0.1.0"
 manifest_version: 1
 kind: standalone
 description: "The xAI API surfaces Hermes core does not cover: full-duplex Grok Voice in Hermes Desktop (key stays on the server, real work handed to Hermes as a normal turn) and a read-only xai_collections_search tool over your xAI Collections. Provider, x_search, web search, TTS, STT and Imagine stay in core."

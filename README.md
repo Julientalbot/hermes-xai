@@ -56,21 +56,50 @@ Settings (`plugins.entries.hermes-xai.settings`, or the plugin's Settings page):
 | `collections_enabled` | `true` | register `xai_collections_search` |
 | `collections_default_ids` | `[]` | collections searched when the model passes none (empty = all) |
 
-## Measured (real key)
+## Measured (real key, 2026-10-15)
 
-Voice, 2026-10-14, `grok-voice-latest`, 2 runs:
+End-to-end voice call with no microphone: the plugin was installed with `hermes plugins install` into
+a throwaway `HERMES_HOME`, served by `hermes serve`, and a spoken question (macOS `say`, 24 kHz mono
+PCM16, 3.3 s) was streamed into the realtime socket in 100 ms frames, exactly as the desktop button
+does. The delegated request ran as a real Hermes turn (`prompt.submit`, surface `voice-live`, agent
+model `grok-4.3`) on the serve's `/api/ws` gateway. Question: *"What time is it right now in Tokyo?
+Please check for me."*
 
 | step | run 1 | run 2 |
 |---|---|---|
-| `POST /session` (client secret minted) | 673 ms | 562 ms |
-| WebSocket open | 905 ms | 917 ms |
+| `POST /api/plugins/hermes-xai/session` (secret minted; key absent from the response) | 925 ms | 394 ms |
+| xAI WebSocket open | 855 ms | 924 ms |
 | `session.created` → model | `grok-voice-3.0` | `grok-voice-3.0` |
-| "What is on my calendar tomorrow morning?" → `hermes_task` call | 1.30 s | 1.39 s |
-| `[Hermes result]` → first audio | 0.77 s | 1.63 s |
+| end of speech → transcript | 0.39 s | 0.55 s |
+| end of speech → spoken acknowledgement (first audio) | 1.05 s | 1.03 s |
+| end of speech → `hermes_task` call | 1.20 s | 1.34 s |
+| Hermes turn (`prompt.submit` → `message.complete`) | 18.1 s* | 6.8 s |
+| `[Hermes result]` → first audio of the answer | 1.02 s | 1.31 s |
+| end of speech → spoken answer | 20.3 s* | 9.4 s |
 
-Collections, 2026-10-15, through the registered tool handler: `list_collections` 0.53 s (1 collection,
-26 documents); a search returned 2 passages with scores in 1.92 s. The key never appeared in a tool
-result.
+Spoken answers: "It's 4:41 PM on October 15 in Tokyo." / "It's 4:42 PM in Tokyo right now." (both
+correct). \*Run 1 was the first turn of a fresh profile, which includes Hermes' first-run onboarding.
+The voice layer itself answers in about 1 s; the rest is the Hermes turn, which depends on your
+model and the task.
+
+Collections, same install, through the registered tool handler: `list_collections` 0.73 s (1
+collection, 26 documents); a search returned 3 passages (scores 0.49–0.51) in 1.61 s. The key never
+appeared in a tool result.
+
+## Limits
+
+- **Desktop only for voice.** The button lives in the Hermes Desktop composer; the CLI, TUI and
+  messaging gateways have no realtime voice from this plugin.
+- **API key, not OAuth.** Plugins cannot use a Grok OAuth (SuperGrok) sign-in, so `XAI_API_KEY` is
+  required.
+- **Results wait for the voice to finish.** A Hermes result that arrives while the voice model is
+  speaking is queued and read right after.
+- **Collections needs xAI-side storage.** Collections keeps your documents on xAI's servers. If your
+  xAI team switches to zero data retention, Collections (and therefore `xai_collections_search`)
+  stops working. The voice module was not tested under zero data retention.
+- **Read only.** The plugin never creates, uploads or deletes collections or documents (that needs
+  xAI's separate management key).
+- Not affiliated with xAI or Nous Research.
 
 ## Disclosure
 
@@ -86,7 +115,7 @@ result.
 ## Develop
 
 ```bash
-~/.hermes/hermes-agent/venv/bin/python -m pytest
+python -m pytest            # 20 tests, no network
 HERMES_HOME=$(mktemp -d) hermes plugins validate .
 ```
 
