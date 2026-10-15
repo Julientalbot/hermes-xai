@@ -1,9 +1,9 @@
 {
-  "name": "grok-voice",
-  "label": "Grok Voice",
+  "name": "hermes-xai",
+  "label": "xAI",
   "description": "Short-lived xAI client secrets for the Grok Voice desktop call (the key stays on the server).",
   "icon": "MessageSquare",
-  "version": "0.1.0",
-  "tab": { "path": "/grok-voice", "hidden": true },
+  "version": "0.2.0",
+  "tab": { "path": "/hermes-xai", "hidden": true },
   "api": "plugin_api.py"
 }

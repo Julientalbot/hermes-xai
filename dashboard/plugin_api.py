@@ -1,10 +1,10 @@
-"""Backend half of grok-voice, mounted by the Hermes web server at ``/api/plugins/grok-voice/``.
+"""Backend half of hermes-xai (voice module), mounted at ``/api/plugins/hermes-xai/``.
 
 * ``GET  /status``  -> ``{available, reason, model, voice}`` (key presence only, never the key)
 * ``POST /session`` -> ``{url, protocol_prefix, client_secret: {value, expires_at}, model, session}``
 
 The xAI key is read per request through ``agent.secret_scope.get_secret`` (profile-scoped, catalog
-rule 11) and spent only inside :func:`hermes_grok_voice.core.mint_session`.
+rule 11) and spent only inside :func:`hermes_xai.voice.mint_session`.
 """
 
 from __future__ import annotations
@@ -22,11 +22,11 @@ _PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 if str(_PLUGIN_ROOT) not in sys.path:
     sys.path.insert(0, str(_PLUGIN_ROOT))
 
-from hermes_grok_voice import core  # noqa: E402
+from hermes_xai import voice as core  # noqa: E402
 
-logger = logging.getLogger("grok-voice")
+logger = logging.getLogger("hermes-xai")
 router = APIRouter()
-PLUGIN_ID = "grok-voice"
+PLUGIN_ID = "hermes-xai"
 
 
 def _key() -> str:
@@ -46,7 +46,7 @@ def _settings() -> Dict[str, Any]:
         entry = (((load_config_readonly() or {}).get("plugins") or {}).get("entries") or {}).get(PLUGIN_ID) or {}
         return core.settings(entry.get("settings"))
     except Exception:
-        logger.warning("grok-voice: settings unreadable, using defaults")
+        logger.warning("hermes-xai: settings unreadable, using defaults")
         return core.settings(None)
 
 
@@ -68,8 +68,8 @@ def session(_body: Dict[str, Any] | None = None):
     try:
         out = core.mint_session(_key(), _settings())
     except core.VoiceError as exc:
-        logger.info("grok-voice: session refused (%s)", exc.reason)
+        logger.info("hermes-xai: session refused (%s)", exc.reason)
         return JSONResponse(status_code=exc.status, content={"detail": exc.detail()})
-    logger.info("grok-voice: client secret minted (model=%s, expires_at=%s)",
+    logger.info("hermes-xai: client secret minted (model=%s, expires_at=%s)",
                 out["model"], out["client_secret"]["expires_at"])
     return out

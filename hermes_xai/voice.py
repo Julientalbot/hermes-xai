@@ -98,7 +98,7 @@ class VoiceError(Exception):
 
 
 def settings(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """``plugins.entries.grok-voice.settings`` with defaults; invalid values fall back silently
+    """``plugins.entries.hermes-xai.settings`` with defaults; invalid values fall back silently
     (xAI accepts an unknown voice without error, so a typo must not reach the wire)."""
     raw = raw if isinstance(raw, dict) else {}
     model = str(raw.get("model") or "").strip()

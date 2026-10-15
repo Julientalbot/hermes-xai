@@ -1,4 +1,4 @@
-// grok-voice — full-duplex xAI Grok Voice in the Hermes Desktop composer.
+// hermes-xai (voice module) — full-duplex xAI Grok Voice in the Hermes Desktop composer.
 //
 // Uncompiled ESM, one file: the loader resolves only @hermes/plugin-sdk and react, so every
 // element goes through createElement. The xAI key never reaches this window: the backend half
@@ -22,7 +22,7 @@ class Pcm24k extends AudioWorkletProcessor {
     return true
   }
 }
-registerProcessor('grok-voice-pcm', Pcm24k)
+registerProcessor('hermes-xai-pcm', Pcm24k)
 `
 
 function toBase64 (float32) {
@@ -53,7 +53,7 @@ async function startMic (onFrame) {
   const url = URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' }))
   await context.audioWorklet.addModule(url)
   URL.revokeObjectURL(url)
-  const node = new AudioWorkletNode(context, 'grok-voice-pcm')
+  const node = new AudioWorkletNode(context, 'hermes-xai-pcm')
   let pending = []
   let size = 0
   node.port.onmessage = ({ data }) => {
@@ -254,7 +254,7 @@ function VoiceButton ({ ctx }) {
     return () => call.listeners.delete(fn)
   }, [])
   useEffect(() => {
-    ctx.rest('/status').then(setStatus, () => setStatus({ available: false, message: 'grok-voice backend unavailable' }))
+    ctx.rest('/status').then(setStatus, () => setStatus({ available: false, message: 'hermes-xai backend unavailable' }))
   }, [ctx])
   const live = call.state !== 'idle'
   const blocked = !live && status && !status.available
@@ -274,7 +274,7 @@ function VoiceButton ({ ctx }) {
 }
 
 export default {
-  id: 'grok-voice',
+  id: 'hermes-xai',
   name: 'Grok Voice',
   defaultEnabled: true,
   register (ctx) {

@@ -1,24 +1,26 @@
-name: grok-voice
-version: "0.1.0"
+name: hermes-xai
+version: "0.2.0"
 manifest_version: 1
 kind: standalone
-description: "Full-duplex xAI Grok Voice in Hermes Desktop: the backend mints a short-lived xAI client secret so the key never reaches the renderer, and real work is handed to Hermes as a normal turn on the open chat."
+description: "The xAI API surfaces Hermes core does not cover: full-duplex Grok Voice in Hermes Desktop (key stays on the server, real work handed to Hermes as a normal turn) and a read-only xai_collections_search tool over your xAI Collections. Provider, x_search, web search, TTS, STT and Imagine stay in core."
 author: "Julien Talbot"
 license: MIT
-homepage: "https://github.com/Julientalbot/hermes-grok-voice"
-tags: ["voice", "xai", "grok", "realtime", "desktop"]
+homepage: "https://github.com/Julientalbot/hermes-xai"
+tags: ["xai", "grok", "voice", "realtime", "desktop", "rag", "collections"]
 requires_env:
   - name: XAI_API_KEY
     description: "xAI API key (the same key Hermes uses for the xAI provider, TTS and STT)"
     url: "https://console.x.ai/team/default/api-keys"
     secret: true
 # 0.21.5 (v2026.9.24) is the first release with ctx.onEvent, composer.actions and the
-# `voice-live` prompt surface this plugin relies on.
+# `voice-live` prompt surface the voice module relies on.
 requires_hermes: ">=0.21.5"
 config_schema:
   model: {type: str, default: "grok-voice-latest", label: "Voice model", description: "grok-voice-latest (alias of grok-voice-3.0) or a pinned grok-voice-* id"}
   voice: {type: str, default: "eve", label: "Voice", description: "Built-in xAI voice name or a custom voice id"}
   reasoning_effort: {type: str, choices: ["none", "high"], default: "none", label: "Voice-model reasoning", description: "none answers fastest; Hermes does the real thinking"}
   instructions: {type: str, default: "", label: "Extra instructions", description: "Appended to the voice persona (language, tone)"}
-provides_tools: []
+  collections_enabled: {type: bool, default: true, label: "Collections search tool", description: "Register xai_collections_search (read only)"}
+  collections_default_ids: {type: list, default: [], label: "Default collections", description: "collection_<uuid> ids searched when the model passes none (empty = all)"}
+provides_tools: ["xai_collections_search"]
 provides_hooks: []

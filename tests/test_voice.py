@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from hermes_grok_voice import core
+from hermes_xai import voice as core
 
 KEY = "xai-" + "k" * 40
 
