@@ -36,8 +36,8 @@ def _key() -> str:
         return (os.environ.get("XAI_API_KEY") or "").strip()
     try:
         return (get_secret("XAI_API_KEY") or "").strip()
-    except UnscopedSecretError:
-        return (os.environ.get("XAI_API_KEY") or "").strip()
+    except UnscopedSecretError:  # several profiles, none bound: the env may hold another profile's key
+        return ""
 
 
 def _settings() -> Dict[str, Any]:
