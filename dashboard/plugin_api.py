@@ -1,10 +1,10 @@
 """Backend half of hermes-xai (voice module), mounted at ``/api/plugins/hermes-xai/``.
 
-* ``GET  /status``  -> ``{available, reason, model, voice}`` (key presence only, never the key)
+* ``GET  /status``  -> ``{available, reason, model, voice}`` (key presence or Hermes sign-in support)
 * ``POST /session`` -> ``{url, protocol_prefix, client_secret: {value, expires_at}, model, session}``
 
-The xAI key is read per request through ``agent.secret_scope.get_secret`` (profile-scoped, catalog
-rule 11) and spent only inside :func:`hermes_xai.voice.mint_session`.
+Hermes owns the sign-in request; the optional API-key fallback is profile-scoped through
+``agent.secret_scope.get_secret`` (catalog rule 11).
 """
 
 from __future__ import annotations
@@ -53,11 +53,11 @@ def _settings() -> Dict[str, Any]:
 @router.get("/status")
 def status() -> Dict[str, Any]:
     cfg = _settings()
-    ready = bool(_key())
+    ready = bool(_key()) or core.oauth_supported()
     return {
         "available": ready,
         "reason": None if ready else "no_key",
-        "message": None if ready else "Set XAI_API_KEY on this Hermes profile to use Grok Voice.",
+        "message": None if ready else "Sign in to xAI Grok in Hermes, or set XAI_API_KEY.",
         "model": cfg["model"],
         "voice": cfg["voice"],
     }

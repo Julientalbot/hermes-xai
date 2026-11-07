@@ -75,3 +75,77 @@ def test_missing_key_and_network_failure():
 def test_a_response_that_echoes_the_key_is_refused():
     with pytest.raises(core.VoiceError):
         core.mint_session(KEY, {}, poster=_poster(body={"value": KEY, "expires_at": 1}))
+
+@pytest.fixture
+def oauth(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    class NotSignedIn(RuntimeError):
+        pass
+
+    calls = []
+    def request(*args, **kwargs):
+        calls.append((args, kwargs))
+        return SimpleNamespace(status=200, json=lambda: {"value": "ephemeral-oauth"})
+
+    api = SimpleNamespace(
+        ProviderNotSignedIn=NotSignedIn,
+        provider_request_capabilities=lambda: {"providers": ["xai-oauth"]},
+        credentialed_provider_request=request,
+    )
+    monkeypatch.setitem(sys.modules, "hermes_cli.plugin_provider_requests", api)
+    return api, calls
+
+
+def test_oauth_mint_prefers_sign_in_and_does_not_use_api_key(oauth):
+    api, calls = oauth
+    def no_key_request(*args):
+        pytest.fail("API key must not be used with a sign-in")
+    out = core.mint_session(KEY, {"voice": "sal"}, poster=no_key_request)
+    assert out["client_secret"]["value"] == "ephemeral-oauth"
+    assert out["session"]["voice"] == "sal"
+    assert calls == [(("xai-oauth", "POST", core.CLIENT_SECRETS_URL),
+                      {"json": {"expires_after": {"seconds": 300}}, "timeout": 20.0})]
+    assert KEY not in repr(calls)
+
+
+def test_oauth_mint_without_key(oauth):
+    assert core.mint_session(None, {})["client_secret"]["value"] == "ephemeral-oauth"
+
+
+def test_missing_sign_in_allows_existing_key_path(oauth):
+    api, _ = oauth
+    def missing(*args, **kwargs):
+        raise api.ProviderNotSignedIn()
+    api.credentialed_provider_request = missing
+    assert core.mint_session(KEY, {}, poster=_poster())["client_secret"]["value"] == "xai-client-secret-abc"
+    with pytest.raises(core.VoiceError, match="Sign in"):
+        core.mint_session(None, {})
+
+
+@pytest.mark.parametrize("failure", [RuntimeError("may have been sent"), PermissionError("undeclared")])
+def test_oauth_errors_do_not_fall_back_or_expose_error_details(oauth, failure):
+    api, _ = oauth
+    def fail(*args, **kwargs):
+        raise failure
+    api.credentialed_provider_request = fail
+    with pytest.raises(core.VoiceError) as err:
+        core.mint_session(KEY, {}, poster=lambda *args: pytest.fail("key fallback"))
+    assert str(failure) not in str(err.value)
+
+
+def test_older_hermes_uses_key_path(oauth):
+    api, calls = oauth
+    api.provider_request_capabilities = lambda: {"providers": ["openai-codex"]}
+    assert core.mint_session(KEY, {}, poster=_poster())["client_secret"]["value"] == "xai-client-secret-abc"
+    assert calls == []
+
+
+def test_oauth_vendor_refusal_never_uses_key(oauth):
+    from types import SimpleNamespace
+    api, _ = oauth
+    api.credentialed_provider_request = lambda *a, **k: SimpleNamespace(status=403, json=lambda: {})
+    with pytest.raises(core.VoiceError) as err:
+        core.mint_session(KEY, {}, poster=lambda *a: pytest.fail("key fallback"))
+    assert err.value.reason == "rejected"

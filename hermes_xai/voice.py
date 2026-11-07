@@ -1,4 +1,4 @@
-"""Session minting for Grok Voice: the only place the xAI key is used.
+"""Session minting for Grok Voice through Hermes sign-in or an optional API key.
 
 The desktop never sees ``XAI_API_KEY``. ``mint_session`` exchanges it for a short-lived client
 secret (``POST /v1/realtime/client_secrets``) and returns what the renderer needs to open
@@ -141,15 +141,45 @@ def _post_json(url: str, headers: Dict[str, str], payload: Dict[str, Any], timeo
         return exc.code, {"error": exc.read().decode("utf-8", "replace")[:300]}
 
 
+def oauth_supported() -> bool:
+    """Feature detection only: never resolves or exposes the profile's OAuth token."""
+    try:
+        from hermes_cli.plugin_provider_requests import provider_request_capabilities
+    except ImportError:
+        return False
+    return "xai-oauth" in provider_request_capabilities().get("providers", [])
+
+
+def _oauth_mint() -> Optional[Tuple[int, Any]]:
+    if not oauth_supported():
+        return None
+    from hermes_cli.plugin_provider_requests import ProviderNotSignedIn, credentialed_provider_request
+    try:
+        response = credentialed_provider_request(
+            "xai-oauth", "POST", CLIENT_SECRETS_URL,
+            json={"expires_after": {"seconds": SECRET_TTL_S}}, timeout=20.0,
+        )
+    except ProviderNotSignedIn:
+        return None
+    except Exception:
+        raise VoiceError("unreachable", "Hermes could not request an xAI voice session.", 502) from None
+    try:
+        return response.status, response.json()
+    except ValueError:
+        raise VoiceError("rejected", "Unexpected answer from xAI.", 502) from None
+
+
 def mint_session(key: Optional[str], cfg: Optional[Dict[str, Any]], poster: Optional[Poster] = None) -> Dict[str, Any]:
     """Client secret + URL + ``session.update`` body for the renderer. Raises :class:`VoiceError`."""
     key = (key or "").strip()
-    if not key:
-        raise VoiceError("no_key", "Grok Voice needs XAI_API_KEY on this Hermes profile.", 503)
     cfg = settings(cfg)  # idempotent: already-clean settings pass through unchanged
     post = poster or _post_json
+    result = _oauth_mint()
+    if result is None and not key:
+        raise VoiceError("no_key", "Sign in to xAI Grok in Hermes, or configure XAI_API_KEY. "
+                         "Subscription voice requires Hermes with xai-oauth provider requests.", 503)
     try:
-        status, body = post(
+        status, body = result if result is not None else post(
             CLIENT_SECRETS_URL,
             {"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             {"expires_after": {"seconds": SECRET_TTL_S}},

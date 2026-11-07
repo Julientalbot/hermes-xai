@@ -52,3 +52,13 @@ def test_session_mints_through_core_and_maps_refusals(api, monkeypatch):
     monkeypatch.setattr(module.core, "_post_json", lambda *a, **k: (401, {"error": "nope"}))
     resp = client.post("/api/plugins/hermes-xai/session", json={})
     assert resp.status_code == 502 and resp.json()["detail"]["reason"] == "rejected"
+
+
+def test_status_offers_sign_in_supported_voice_without_a_key(api, monkeypatch):
+    module, client = api
+    monkeypatch.setattr(module, "_key", lambda: "")
+    monkeypatch.setattr(module.core, "oauth_supported", lambda: True)
+    monkeypatch.setattr(module, "_settings", lambda: module.core.settings({"voice": "sal"}))
+    body = client.get("/api/plugins/hermes-xai/status").json()
+    assert body["available"] is True
+    assert body["voice"] == "sal"
