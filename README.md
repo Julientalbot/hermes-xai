@@ -17,10 +17,10 @@ web, memory, an action), the voice model hands it to Hermes as a normal turn on 
 reads out the result. Same pattern as core's GPT-Live mode (`voice.voice_chat_mode: gpt-live`); the
 transport differs: xAI Realtime is a WebSocket API authenticated by an ephemeral client secret.
 
-1. `POST /api/plugins/hermes-xai/session`: the backend reads `XAI_API_KEY` through
-   `agent.secret_scope.get_secret`, calls `POST https://api.x.ai/v1/realtime/client_secrets` (300 s
-   TTL) and returns `{url, protocol_prefix, client_secret, model, session}`. The key never leaves the
-   backend.
+1. `POST /api/plugins/hermes-xai/session`: Hermes uses the profile's xAI sign-in through
+   `credentialed_provider_request` to call `POST https://api.x.ai/v1/realtime/client_secrets`
+   (300 s TTL). With no sign-in, the backend can use an optional `XAI_API_KEY` through
+   `agent.secret_scope.get_secret`. Only the client secret reaches the desktop.
 2. The desktop half opens `wss://api.x.ai/v1/realtime?model=…` with the subprotocol
    `xai-client-secret.<value>` and sends the returned `session.update` (persona, server VAD, 24 kHz
    PCM, tools `hermes_task` and `end_call`), then streams mic audio.
@@ -41,9 +41,10 @@ console.x.ai. With no ids it uses `collections_default_ids`, else every collecti
 hermes plugins install https://github.com/Julientalbot/hermes-xai
 ```
 
-Needs `XAI_API_KEY` in the profile's `.env` (the installer prompts for it). A Grok OAuth (SuperGrok)
-sign-in alone is not used, because plugins never hold OAuth tokens (catalog rule 11). Then click the
-waveform button in the composer, or ask Hermes about your documents.
+Voice uses the profile's xAI Grok (SuperGrok) sign-in on Hermes builds with `xai-oauth`
+provider requests. The plugin never holds the OAuth token (catalog rule 11). An optional
+`XAI_API_KEY` also supports voice on older builds or profiles without a sign-in;
+Collections requires that key. Then click the waveform button in the composer.
 
 Settings (`plugins.entries.hermes-xai.settings`, or the plugin's Settings page):
 
@@ -120,3 +121,14 @@ HERMES_HOME=$(mktemp -d) hermes plugins validate .
 ```
 
 MIT licensed.
+
+### Voice with a Hermes xAI sign-in
+
+On Hermes builds supporting `xai-oauth` provider requests, voice prefers the
+profile's existing xAI Grok sign-in. Hermes mints a short-lived client secret;
+the plugin never receives the OAuth token. `XAI_API_KEY` is optional for voice
+and is used only when Hermes reports no sign-in. Request failures do not retry
+using a key. Older Hermes builds keep the API-key path. The status endpoint
+reports support optimistically; starting a session verifies the sign-in.
+Collections still require `XAI_API_KEY`. Set
+`plugins.entries.hermes-xai.settings.voice` to `sal` to use Sal.

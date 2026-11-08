@@ -7,9 +7,10 @@ author: "Julien Talbot"
 license: MIT
 homepage: "https://github.com/Julientalbot/hermes-xai"
 tags: ["xai", "grok", "voice", "realtime", "desktop", "rag", "collections"]
-requires_env:
+requires_auth: [xai-oauth]
+optional_env:
   - name: XAI_API_KEY
-    description: "xAI API key (the same key Hermes uses for the xAI provider, TTS and STT)"
+    description: "Optional for voice without a Hermes xAI sign-in; required for Collections"
     url: "https://console.x.ai/team/default/api-keys"
     secret: true
 # 0.21.5 (v2026.9.24) is the first release with ctx.onEvent, composer.actions and the
